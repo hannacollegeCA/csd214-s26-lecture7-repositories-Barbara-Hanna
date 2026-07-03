@@ -40,6 +40,24 @@ public class ProductRepository implements IRepository<ProductEntity> {
     }
 
     @Override
+    public ProductEntity findByProductId(String productId) {
+        if (productId == null) {
+            return null;
+        }
+
+        try {
+            return em.createQuery(
+                            "SELECT p FROM ProductEntity p WHERE p.productId = :prodId",
+                            ProductEntity.class
+                    )
+                    .setParameter("prodId", productId)
+                    .getSingleResult();
+        } catch (jakarta.persistence.NoResultException e) {
+            return null;
+        }
+    }
+
+    @Override
     public List<ProductEntity> findAll() {
         return em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class).getResultList();
     }
