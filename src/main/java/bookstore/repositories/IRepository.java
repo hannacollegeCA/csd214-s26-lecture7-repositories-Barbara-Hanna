@@ -13,5 +13,6 @@ public interface IRepository<T> {
     void delete(Long id);
     long count();
     int deleteAll();   // Returns total count of deleted database records
+    String getDataSourceType();
     void close();
 }

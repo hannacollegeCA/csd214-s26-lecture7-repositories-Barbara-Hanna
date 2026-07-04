@@ -5,29 +5,39 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.Persistence;
+
 import java.util.List;
 
-public class ProductRepository implements IRepository<ProductEntity> {
+public class H2Repository implements IRepository<ProductEntity> {
+
     private final EntityManagerFactory emf;
     private final EntityManager em;
 
-    public ProductRepository() {
-        this.emf = Persistence.createEntityManagerFactory("bookstore-pu");
+    public H2Repository() {
+        // persistence unit h2-pu
+        this.emf = Persistence.createEntityManagerFactory("h2-pu");
         this.em = emf.createEntityManager();
     }
 
     @Override
     public ProductEntity save(ProductEntity entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Cannot save a null entity.");
+        }
+
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
+
             if (entity.getId() == null) {
-                em.persist(entity); // INSERT
+                em.persist(entity);   // INSERT
             } else {
-                entity = em.merge(entity); // UPDATE (Dirty Checking)
+                entity = em.merge(entity); // UPDATE
             }
+
             tx.commit();
             return entity;
+
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
             throw e;
@@ -36,14 +46,13 @@ public class ProductRepository implements IRepository<ProductEntity> {
 
     @Override
     public ProductEntity findById(Long id) {
+        if (id == null) return null;
         return em.find(ProductEntity.class, id);
     }
 
     @Override
     public ProductEntity findByProductId(String productId) {
-        if (productId == null) {
-            return null;
-        }
+        if (productId == null) return null;
 
         try {
             return em.createQuery(
@@ -52,6 +61,7 @@ public class ProductRepository implements IRepository<ProductEntity> {
                     )
                     .setParameter("prodId", productId)
                     .getSingleResult();
+
         } catch (jakarta.persistence.NoResultException e) {
             return null;
         }
@@ -59,19 +69,25 @@ public class ProductRepository implements IRepository<ProductEntity> {
 
     @Override
     public List<ProductEntity> findAll() {
-        return em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class).getResultList();
+        return em.createQuery("SELECT p FROM ProductEntity p", ProductEntity.class)
+                .getResultList();
     }
 
     @Override
     public void delete(Long id) {
+        if (id == null) return;
+
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
+
             ProductEntity entity = em.find(ProductEntity.class, id);
             if (entity != null) {
                 em.remove(entity);
             }
+
             tx.commit();
+
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
             throw e;
@@ -89,9 +105,13 @@ public class ProductRepository implements IRepository<ProductEntity> {
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
-            int deletedCount = em.createQuery("DELETE FROM ProductEntity").executeUpdate();
+
+            int deleted = em.createQuery("DELETE FROM ProductEntity")
+                    .executeUpdate();
+
             tx.commit();
-            return deletedCount;
+            return deleted;
+
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
             throw e;
@@ -99,14 +119,15 @@ public class ProductRepository implements IRepository<ProductEntity> {
     }
 
     @Override
-    public void close() {
-        if (em != null && em.isOpen()) em.close();
-        if (emf != null && emf.isOpen()) emf.close();
+    public String getDataSourceType() {
+        return "TRANSIENT H2 (In-Memory SQL)";
     }
 
     @Override
-    public String getDataSourceType() {
-        return "PERSISTENT MySQL (Legacy ProductRepository)";
-    }
+    public void close() {
+        if (em != null && em.isOpen()) em.close();
+        if (emf != null && emf.isOpen()) emf.close();
 
+        System.out.println("H2 in-memory database closed (create-drop).");
+    }
 }
